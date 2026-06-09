@@ -97,7 +97,14 @@ async def webhook(request: Request):
     # Always capture the contact number, then load profile + history.
     await db.save_contact(msg)
     profile = await db.get_profile(msg.user_id)
-    history = await db.get_history(msg.user_id)
+
+    # Prefer the platform's chatHistory (clean, authoritative) over MongoDB which may be polluted.
+    platform_history = [
+        {"role": m["role"], "content": m["content"]}
+        for m in body.get("chatHistory") or []
+        if m.get("content")
+    ]
+    history = platform_history or await db.get_history(msg.user_id)
 
     user_text = msg.text
     if msg.has_image:
@@ -111,7 +118,8 @@ async def webhook(request: Request):
 
     # Persist conversation + structured side effects.
     await db.append_history(msg.user_id, "user", user_text)
-    await db.append_history(msg.user_id, "assistant", out.reply)
+    if out.reply:
+        await db.append_history(msg.user_id, "assistant", out.reply)
     if out.profile_changed:
         await db.upsert_profile(msg, out.profile_update.model_dump(), out.onboarding_complete)
     if out.meal_logged:

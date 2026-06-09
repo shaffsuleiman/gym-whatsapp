@@ -101,6 +101,9 @@ async def append_history(user_id: str, role: str, content: str) -> None:
 
 
 async def get_history(user_id: str, limit: int = 12) -> list[dict]:
-    cur = _db().chat_histories.find({"user_id": user_id}, {"_id": 0, "role": 1, "content": 1}).sort("ts", -1).limit(limit)
+    cur = _db().chat_histories.find(
+        {"user_id": user_id, "content": {"$nin": [None, ""]}},
+        {"_id": 0, "role": 1, "content": 1},
+    ).sort("ts", -1).limit(limit)
     msgs = [d async for d in cur]
     return list(reversed(msgs))
