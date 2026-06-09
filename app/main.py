@@ -95,6 +95,7 @@ WEBHOOK_PATHS = [
 @app.post("/webhook/gym-trainer")
 async def webhook(request: Request):
     body = await request.json()
+    log.warning("BODY_KEYS %r  msg_keys %r", list(body.keys()), list((body.get("message") or {}).keys()))
     msg = normalize(body)
 
     # Prefer the platform's chatHistory (clean, authoritative) over MongoDB which may be polluted.
@@ -127,6 +128,7 @@ async def webhook(request: Request):
         user_text = f"{msg.text or '(sent a food photo)'}\n\n[Food photo analysis]:\n{analysis}"
 
     out = await run_agent(msg.user_id, msg.sender_name or profile.get("name", ""), profile, user_text, history)
+    log.warning("MSG user_id=%r text=%r name=%r", msg.user_id, msg.text, msg.sender_name)
     log.warning("REPLY [%s] len=%d repr=%r", msg.user_id, len(out.reply), out.reply[:80])
 
     # Persist conversation + structured side effects.
