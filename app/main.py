@@ -97,17 +97,26 @@ async def webhook(request: Request):
     body = await request.json()
     msg = normalize(body)
 
-    # Always capture the contact number, then load profile + history.
-    await db.save_contact(msg)
-    profile = await db.get_profile(msg.user_id)
-
     # Prefer the platform's chatHistory (clean, authoritative) over MongoDB which may be polluted.
     platform_history = [
         {"role": m["role"], "content": m["content"]}
         for m in body.get("chatHistory") or []
         if m.get("content")
     ]
-    history = platform_history or await db.get_history(msg.user_id)
+
+    # Run DB calls in parallel.
+    if platform_history:
+        profile, _ = await asyncio.gather(
+            db.get_profile(msg.user_id),
+            db.save_contact(msg),
+        )
+        history = platform_history
+    else:
+        profile, _, history = await asyncio.gather(
+            db.get_profile(msg.user_id),
+            db.save_contact(msg),
+            db.get_history(msg.user_id),
+        )
 
     user_text = msg.text
     if msg.has_image:

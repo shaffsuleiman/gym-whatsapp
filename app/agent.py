@@ -77,7 +77,6 @@ async def run_agent(user_id: str, name: str, profile: dict, user_text: str, hist
         model=settings.openai_model,
         messages=messages,
         response_format={"type": "json_schema", "json_schema": AGENT_JSON_SCHEMA},
-        reasoning_effort="minimal",
     )
     raw = resp.choices[0].message.content or "{}"
     return AgentOutput.model_validate_json(raw)
