@@ -1,7 +1,10 @@
 """FastAPI port of the n8n Gym Trainer — single inbound webhook + dinner-reminder job."""
 import asyncio
+import logging
 import re
 from contextlib import asynccontextmanager
+
+log = logging.getLogger("gym_trainer")
 
 from fastapi import FastAPI, Request
 
@@ -115,6 +118,7 @@ async def webhook(request: Request):
         user_text = f"{msg.text or '(sent a food photo)'}\n\n[Food photo analysis]:\n{analysis}"
 
     out = await run_agent(msg.user_id, msg.sender_name or profile.get("name", ""), profile, user_text, history)
+    log.warning("REPLY [%s] len=%d repr=%r", msg.user_id, len(out.reply), out.reply[:80])
 
     # Persist conversation + structured side effects.
     await db.append_history(msg.user_id, "user", user_text)
@@ -128,6 +132,7 @@ async def webhook(request: Request):
         await db.insert_weight(msg, out.weight_kg)
 
     response: dict = {"text": out.reply}
+    log.warning("RESPONSE %r", response)
     if out.wants_progress_chart:
         weights = await db.get_weights(msg.user_id)
         target = float(profile.get("target_weight_kg") or out.profile_update.target_weight_kg or 0) or None
